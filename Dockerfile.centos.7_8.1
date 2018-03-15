@@ -1,12 +1,12 @@
-FROM centos:centos7
-MAINTAINER Jean Baptiste Favre <docker@jbfavre.org>
-
-ARG VERTICA_PACKAGE="unknown"
+FROM harbor01.na.intgdc.com/base/centos:7.4.1708
+MAINTAINER Horizon <horizon@gooddata.com>
 
 ENV LANG en_US.utf8
 ENV TZ UTC
 
-ADD packages/${VERTICA_PACKAGE} /tmp/
+ARG v_ver=8.1.1
+ARG v_rel=15
+ARG vertica_package=vertica-${v_ver}-${v_rel}.x86_64.rpm
 
 RUN yum -q -y update \
  && yum -q -y install openssl curl \
@@ -15,8 +15,10 @@ RUN yum -q -y update \
  && /usr/sbin/groupadd -r verticadba \
  && /usr/sbin/useradd -r -m -s /bin/bash -g verticadba dbadmin \
  && /usr/local/bin/gosu dbadmin mkdir /tmp/.python-eggs \
- && yum install -y mcelog gdb sysstat iproute \
- && yum localinstall -q -y /tmp/${VERTICA_PACKAGE}
+ && yum install -y mcelog gdb sysstat iproute wget
+
+RUN wget -q -O /tmp/${vertica_package} http://pulp.na.intgdc.com/pulp/repos/mirror/hp-vertica/${vertica_package}
+RUN yum localinstall -q -y /tmp/${vertica_package}
 
 RUN /opt/vertica/sbin/install_vertica --license CE --accept-eula --hosts 127.0.0.1 --dba-user-password-disabled --failure-threshold NONE --no-system-configuration \
  && gosu dbadmin /opt/vertica/bin/admintools -t create_db -s localhost -d docker --skip-fs-checks -c /home/dbadmin/docker/catalog -D /home/dbadmin/docker/data \
